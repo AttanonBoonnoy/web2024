@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>แบบทดสอบคณิตศาสตร์</title>
+  <link href="https://cdn.jsdelivr.net/npm/@mdi/font/css/materialdesignicons.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/vuetify@2.6.10/dist/vuetify.min.css" rel="stylesheet">
+</head>
+<body>
+  <div id="app"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vuetify@2.6.10/dist/vuetify.js"></script>
+
+  <script>
+    new Vue({
+      el: '#app',
+      vuetify: new Vuetify(),
+      data() {
+        return {
+          quizData: [],  
+          currentStep: 0, 
+          answers: [], 
+          score: 0, 
+          quizStarted: false, 
+          quizFinished: false, 
+          errorMessage: '', 
+        };
+      },
+      methods: {
+        async startQuiz() {
+          this.quizStarted = true;
+          await this.loadQuizData();
+          this.currentStep = 0; 
+        },
+
+        async loadQuizData() {
+          try {
+            const response = await fetch('./quiz2.json'); 
+            if (!response.ok) {
+              throw new Error('ไม่สามารถโหลดข้อมูลได้');
+            }
+            const data = await response.json();
+            this.quizData = data;
+          } catch (error) {
+            console.error('เกิดข้อผิดพลาดในการโหลดข้อมูล:', error);
+            this.errorMessage = 'ไม่สามารถโหลดข้อมูลคำถามได้ กรุณาตรวจสอบว่าไฟล์ quiz2.json อยู่ในตำแหน่งที่ถูกต้อง';
+          }
+        },
+
+        selectAnswer(index) {
+          this.$set(this.answers, this.currentStep, index);
+        },
+
+        nextQuestion() {
+          if (this.currentStep < this.quizData.length - 1) {
+            this.currentStep++;
+          } else {
+            this.quizFinished = true;
+            this.calculateScore();
+          }
+        },
+
+        previousQuestion() {
+          if (this.currentStep > 0) {
+            this.currentStep--;
+          }
+        },
+
+        calculateScore() {
+          this.score = this.answers.reduce((acc, answer, index) => {
+            if (answer === this.quizData[index].answer) {
+              acc++;
+            }
+            return acc;
+          }, 0);
+        },
+
+        restartQuiz() {
+          this.quizStarted = false;
+          this.quizFinished = false;
+          this.currentStep = 0;
+          this.answers = [];
+          this.score = 0;
+          this.errorMessage = '';
+        }
+      },
+      template: `
+        <v-app>
+          <!-- หน้าเริ่มต้น -->
+          <v-container v-if="!quizStarted && !errorMessage" class="d-flex align-center justify-center" style="height: 100vh;">
+            <v-card class="pa-5" max-width="400" outlined>
+              <v-card-title class="headline">แบบทดสอบคณิตศาสตร์</v-card-title>
+              <v-btn @click="startQuiz" color="primary" class="mt-4" block>เริ่มทำแบบทดสอบ</v-btn>
+            </v-card>
+          </v-container>
+
+          <!-- แสดงข้อความผิดพลาด -->
+          <v-container v-if="errorMessage" class="d-flex align-center justify-center" style="height: 100vh;">
+            <v-card class="pa-5" max-width="400" outlined>
+              <v-card-title class="headline text-danger">เกิดข้อผิดพลาด</v-card-title>
+              <v-card-subtitle>{{ errorMessage }}</v-card-subtitle>
+              <v-btn @click="restartQuiz" color="primary" class="mt-4" block>ลองใหม่</v-btn>
+            </v-card>
+          </v-container>
+
+          <!-- หน้าแบบทดสอบ -->
+          <v-container v-if="quizStarted && !quizFinished && !errorMessage" class="text-center">
+            <v-card class="pa-5 mx-auto" max-width="600">
+              <v-card-title class="headline">
+                {{ 'คำถามที่ ' + (currentStep + 1) + ': ' + quizData[currentStep]?.title }}
+              </v-card-title>
+              <v-card-text>
+                <v-btn
+                  v-for="(option, index) in quizData[currentStep].options"
+                  :key="index"
+                  :color="answers[currentStep] === index ? 'primary' : 'default'"
+                  @click="selectAnswer(index)"
+                  class="my-2"
+                  block
+                >
+                  {{ option }}
+                </v-btn>
+              </v-card-text>
+              <v-card-actions>
+                <v-btn @click="previousQuestion" :disabled="currentStep === 0" outlined>ย้อนกลับ</v-btn>
+                <v-btn
+                  @click="nextQuestion"
+                  :disabled="answers[currentStep] === undefined"
+                  color="primary"
+                >
+                  {{ currentStep === quizData.length - 1 ? 'ส่งคำตอบ' : 'ถัดไป' }}
+                </v-btn>
+              </v-card-actions>
+            </v-card>
+          </v-container>
+
+          <!-- หน้าแสดงผลคะแนน -->
+          <v-container v-if="quizFinished" class="d-flex align-center justify-center" style="height: 100vh;">
+            <v-card class="pa-5" max-width="400" outlined>
+              <v-card-title class="headline">คะแนนของคุณ</v-card-title>
+              <v-card-subtitle>
+                คุณตอบถูก {{ score }} จากทั้งหมด {{ quizData.length }} ข้อ
+              </v-card-subtitle>
+              <v-btn @click="restartQuiz" color="primary" class="mt-4" block>เริ่มใหม่</v-btn>
+            </v-card>
+          </v-container>
+        </v-app>
+      `
+    });
+  </script>
+</body>
+</html>
